@@ -3,7 +3,6 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useChainId } from "wagmi";
 import AllocationMeters from "./components/AllocationMeters";
 import OnchainMarketplace from "./components/OnchainMarketplace";
-import SystemsThinkingPanel from "./components/SystemsThinkingPanel";
 import WorldMap from "./components/WorldMap";
 import {
   cloneDefaultNodes,
@@ -261,10 +260,10 @@ export default function App() {
       <div className="content">
         <section className="panel humanFacing" aria-label="Live market">
           <div className="panelHeader">
-            <h2>Live Resource Marketplace</h2>
+            <h2>Markets</h2>
             <div className="pill pillCompact">
               <span className="dot dotAccent" />
-              <span>Realtime mock</span>
+              <span>SIM + ON-CHAIN</span>
             </div>
           </div>
           <div className="panelBody">
@@ -276,11 +275,11 @@ export default function App() {
               <table>
                 <thead>
                   <tr>
-                    <th>Node</th>
-                    <th>Energy Cost</th>
-                    <th>GPU Supply</th>
-                    <th>Renewable %</th>
-                    <th>Active Workloads</th>
+                    <th>Venue</th>
+                    <th>kWh</th>
+                    <th>GPU%</th>
+                    <th>REN%</th>
+                    <th>LOAD</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -337,7 +336,7 @@ export default function App() {
 
         <section className="panel panelCenter" aria-label="Global infrastructure">
           <div className="panelHeader">
-            <h2>Global Infrastructure Map</h2>
+            <h2>Map</h2>
             <div className="pill pillCompact">
               <span className={`dot ${crisis.active ? "bad blink" : "good"}`} />
               <span>{crisis.active ? "Crisis mode" : "Steady state"}</span>
@@ -367,26 +366,25 @@ export default function App() {
           </div>
         </section>
 
-        <section className="panel" aria-label="AI activity and systems thinking">
+        <section className="panel" aria-label="Trade tape">
           <div className="panelHeader">
-            <h2>Autonomous AI Agent Feed</h2>
+            <h2>Trade Tape</h2>
             <div className="pill pillCompact">
               <span className="dot dotAccent" />
-              <span>{activity.length} events</span>
+              <span>{sortedActivity.length} prints</span>
             </div>
           </div>
           <div className="panelBody panelBodyFeed">
-            <SystemsThinkingPanel />
             <div className="feed">
               {crisis.active ? (
                 <div className="humanOut blink">
-                  Humans become priced out of critical infrastructure while agents optimize for bids.
+                  Market alert: discretionary load curtailed as bids accelerate.
                 </div>
               ) : null}
               {sortedActivity.slice(0, 10).map((e) => (
                 <div className={`feedItem feedItem--${e.kind}`} key={e.id}>
                   <div className="feedMeta">
-                    <span className="feedKind">{e.kind}</span>
+                    <span className="feedKind">{e.kind.toUpperCase()}</span>
                     <span className="time">{timeAgo(e.at, nowMs)}</span>
                   </div>
                   <div className="msg">{e.message}</div>
@@ -419,7 +417,7 @@ export default function App() {
               onClick={triggerCrisis}
               disabled={crisis.active}
             >
-              Trigger Grid Crisis
+              SIM: GRID SHOCK
             </button>
             <button type="button" className="btn" onClick={clearCrisis} disabled={!crisis.active}>
               Clear Crisis
@@ -429,7 +427,7 @@ export default function App() {
             </button>
           </div>
           <div className="priceImpact humanFacing">
-            <div className="title">Sustainability Optimization</div>
+            <div className="title">Risk / Sustainability</div>
             <div className="sub">
               Carbon avg: <strong>{Math.round(stats.avgCarbon)}</strong> • Renewables:{" "}
               <strong>{Math.round(stats.avgRenew)}%</strong> • Efficiency:{" "}
