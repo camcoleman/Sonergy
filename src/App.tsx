@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useAccount, useChainId } from "wagmi";
 import AllocationMeters from "./components/AllocationMeters";
+import OnchainMarketplace from "./components/OnchainMarketplace";
 import SystemsThinkingPanel from "./components/SystemsThinkingPanel";
 import WorldMap from "./components/WorldMap";
 import {
@@ -13,10 +16,21 @@ import {
 import { genCrisisBurst, genMarketUpdate } from "./lib/simulation";
 import type { Activity, CrisisState, MarketNode, MigrationArc } from "./lib/types";
 import { ACTIVITY_PRIORITY, clamp, fmtCurrency, fmtPct, timeAgo, uid } from "./lib/utils";
+import { DEFAULT_CHAIN_ID, SUPPORTED_CHAINS } from "./web3/chains";
 
 export default function App() {
+  const { isConnected } = useAccount();
+  const chainId = useChainId();
+  const supportedChainIds = useMemo(() => SUPPORTED_CHAINS.map((c) => c.id), []);
+  const isSupportedChain = supportedChainIds.includes(chainId);
+  const targetChainName = useMemo(
+    () => SUPPORTED_CHAINS.find((c) => c.id === DEFAULT_CHAIN_ID)?.name ?? "Supported testnet",
+    [],
+  );
+
   const [nodes, setNodes] = useState<MarketNode[]>(cloneDefaultNodes);
   const [activity, setActivity] = useState<Activity[]>(seedActivity);
+  const [onchainActivity, setOnchainActivity] = useState<Activity[]>([]);
   const [crisis, setCrisis] = useState<CrisisState>({
     active: false,
     untilMs: 0,
@@ -75,14 +89,19 @@ export default function App() {
   }, [crisis.active, nodes]);
 
   const sortedActivity = useMemo(() => {
-    return [...activity].sort((a, b) => {
+    const merged = [...onchainActivity, ...activity];
+    return merged.sort((a, b) => {
       if (crisis.active) {
         const p = ACTIVITY_PRIORITY[a.kind] - ACTIVITY_PRIORITY[b.kind];
         if (p !== 0) return p;
       }
       return b.at - a.at;
     });
-  }, [activity, crisis.active]);
+  }, [activity, onchainActivity, crisis.active]);
+
+  const onNewOnchainActivity = useCallback((a: Activity) => {
+    setOnchainActivity((prev) => [a, ...prev].slice(0, 18));
+  }, []);
 
   useEffect(() => {
     const tick = window.setInterval(() => {
@@ -196,6 +215,9 @@ export default function App() {
           <div>Sonergy</div>
         </div>
         <div className="topbarSpacer" />
+        <div className="walletSlot">
+          <ConnectButton />
+        </div>
         <button type="button" className="btn btnGhost" onClick={resetDemo}>
           Reset demo
         </button>
@@ -206,6 +228,17 @@ export default function App() {
           </span>
         </div>
       </div>
+
+      {isConnected && !isSupportedChain ? (
+        <div className="bannerRow">
+          <div className="banner banner--human">
+            <div className="gridWarnGlyph">⚠</div>
+            <div>
+              <strong>Wrong network</strong> — switch to <strong>{targetChainName}</strong> to use the on-chain marketplace.
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {crisis.active ? (
         <div className="bannerRow bannerRow--stack">
@@ -235,6 +268,10 @@ export default function App() {
             </div>
           </div>
           <div className="panelBody">
+            <OnchainMarketplace
+              nodes={nodes.map((n) => ({ id: n.id, name: n.name }))}
+              onNewOnchainActivity={onNewOnchainActivity}
+            />
             <div className="tableWrap">
               <table>
                 <thead>

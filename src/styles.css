@@ -87,6 +87,11 @@ body {
   flex: 1;
 }
 
+.walletSlot {
+  display: flex;
+  align-items: center;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
@@ -714,6 +719,135 @@ select {
   border: 1px solid rgba(90, 115, 173, 0.28);
   padding: 10px 12px;
   border-radius: 12px;
+}
+
+.onchainWrap {
+  margin-bottom: 12px;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tab {
+  border: 1px solid rgba(90, 115, 173, 0.28);
+  background: rgba(16, 28, 57, 0.35);
+  color: var(--muted);
+  border-radius: 12px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.tab--active {
+  color: var(--text);
+  border-color: rgba(106, 165, 255, 0.55);
+  background: rgba(16, 28, 57, 0.6);
+}
+
+.onchainHint {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 8px 0 10px;
+}
+
+.onchainPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.onchainForm {
+  border: 1px solid rgba(90, 115, 173, 0.25);
+  border-radius: 14px;
+  background: rgba(16, 28, 57, 0.35);
+  padding: 10px;
+}
+
+.onchainRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.onchainRow label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.onchainRow input {
+  background: rgba(16, 28, 57, 0.55);
+  color: var(--text);
+  border: 1px solid rgba(90, 115, 173, 0.28);
+  padding: 10px 12px;
+  border-radius: 12px;
+  outline: none;
+}
+
+.onchainOrdersHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.orderCard {
+  border: 1px solid rgba(90, 115, 173, 0.25);
+  background: rgba(16, 28, 57, 0.35);
+  border-radius: 14px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.orderTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.orderMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 0 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.orderSide {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  font-weight: 900;
+}
+
+.orderSide--buy {
+  background: rgba(47, 227, 166, 0.12);
+  border: 1px solid rgba(47, 227, 166, 0.25);
+  color: rgba(47, 227, 166, 0.95);
+}
+
+.orderSide--sell {
+  background: rgba(255, 204, 102, 0.12);
+  border: 1px solid rgba(255, 204, 102, 0.25);
+  color: rgba(255, 204, 102, 0.95);
 }
 
 .btn {

@@ -6,19 +6,31 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview --port 5173"
+    "preview": "vite preview --port 5173",
+    "contracts:test": "hardhat test",
+    "contracts:compile": "hardhat compile",
+    "agents:steady": "node --loader tsx ./scripts/agents/runAgents.ts",
+    "agents:crisis": "node --loader tsx ./scripts/agents/runAgents.ts --crisis"
   },
   "dependencies": {
+    "@openzeppelin/contracts": "^5.6.1",
+    "@rainbow-me/rainbowkit": "^2.2.11",
+    "@tanstack/react-query": "^5.100.14",
     "leaflet": "^1.9.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-leaflet": "^4.2.1"
+    "react-leaflet": "^4.2.1",
+    "viem": "^2.51.0",
+    "wagmi": "^2.19.5"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.6",
     "@types/leaflet": "^1.9.21",
     "@types/react": "^18.3.4",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "hardhat": "^3.6.0",
+    "tsx": "^4.22.3",
     "typescript": "^5.5.4",
     "vite": "^5.4.3"
   }

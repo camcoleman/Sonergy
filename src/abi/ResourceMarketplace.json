@@ -1,0 +1,118 @@
+{
+  "contractName": "ResourceMarketplace",
+  "abi": [
+    {
+      "inputs": [{ "internalType": "address", "name": "_paymentToken", "type": "address" }],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        { "indexed": true, "internalType": "uint256", "name": "orderId", "type": "uint256" },
+        { "indexed": true, "internalType": "address", "name": "maker", "type": "address" }
+      ],
+      "name": "OrderCancelled",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        { "indexed": true, "internalType": "uint256", "name": "orderId", "type": "uint256" },
+        { "indexed": true, "internalType": "address", "name": "maker", "type": "address" },
+        { "indexed": false, "internalType": "uint8", "name": "resourceType", "type": "uint8" },
+        { "indexed": false, "internalType": "uint8", "name": "side", "type": "uint8" },
+        { "indexed": true, "internalType": "bytes32", "name": "nodeIdHash", "type": "bytes32" },
+        { "indexed": false, "internalType": "uint256", "name": "unitPrice", "type": "uint256" },
+        { "indexed": false, "internalType": "uint256", "name": "quantity", "type": "uint256" },
+        { "indexed": false, "internalType": "uint64", "name": "expiry", "type": "uint64" }
+      ],
+      "name": "OrderCreated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        { "indexed": true, "internalType": "uint256", "name": "orderId", "type": "uint256" },
+        { "indexed": true, "internalType": "address", "name": "buyer", "type": "address" },
+        { "indexed": true, "internalType": "address", "name": "seller", "type": "address" },
+        { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" },
+        { "indexed": false, "internalType": "uint256", "name": "totalPaid", "type": "uint256" }
+      ],
+      "name": "OrderFilled",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        { "internalType": "uint256", "name": "orderId", "type": "uint256" }
+      ],
+      "name": "cancelOrder",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        { "internalType": "uint8", "name": "resourceType", "type": "uint8" },
+        { "internalType": "uint8", "name": "side", "type": "uint8" },
+        { "internalType": "bytes32", "name": "nodeIdHash", "type": "bytes32" },
+        { "internalType": "uint256", "name": "unitPrice", "type": "uint256" },
+        { "internalType": "uint256", "name": "quantity", "type": "uint256" },
+        { "internalType": "uint64", "name": "expiry", "type": "uint64" }
+      ],
+      "name": "createOrder",
+      "outputs": [{ "internalType": "uint256", "name": "orderId", "type": "uint256" }],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        { "internalType": "uint256", "name": "orderId", "type": "uint256" },
+        { "internalType": "uint256", "name": "amount", "type": "uint256" }
+      ],
+      "name": "fillOrder",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getOpenOrderIds",
+      "outputs": [{ "internalType": "uint256[]", "name": "", "type": "uint256[]" }],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "nextOrderId",
+      "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "paymentToken",
+      "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+      "name": "orders",
+      "outputs": [
+        { "internalType": "address", "name": "maker", "type": "address" },
+        { "internalType": "uint8", "name": "resourceType", "type": "uint8" },
+        { "internalType": "uint8", "name": "side", "type": "uint8" },
+        { "internalType": "bytes32", "name": "nodeIdHash", "type": "bytes32" },
+        { "internalType": "uint256", "name": "unitPrice", "type": "uint256" },
+        { "internalType": "uint256", "name": "quantity", "type": "uint256" },
+        { "internalType": "uint256", "name": "filled", "type": "uint256" },
+        { "internalType": "uint64", "name": "expiry", "type": "uint64" },
+        { "internalType": "bool", "name": "active", "type": "bool" }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ]
+}
+

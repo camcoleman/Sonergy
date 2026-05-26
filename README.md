@@ -26,6 +26,7 @@ After GitHub Pages is enabled (see [Deploy](#deploy)), the app will be available
 - **Trigger Grid Crisis** — price spikes, red alerts, agent bidding, humans priced out
 - **Systems thinking panel** — benefit, concern, failure scenario, ethical question
 - **Reset demo** — restores a clean baseline for repeatable presentations
+- **On-chain marketplace** — wallet connect + real on-chain orders/fills (MockUSDC + ResourceMarketplace)
 
 ## Run locally
 
@@ -71,18 +72,96 @@ GITHUB_ACTIONS=true npm run build
 # Upload dist/ to any static host; set base path to /Sonergy/ on GitHub Pages
 ```
 
+## On-chain marketplace (EVM testnet)
+
+### What’s on-chain
+- `MockUSDC` (mintable ERC20, 6 decimals)
+- `ResourceMarketplace` (simple orderbook: create/cancel/fill + events)
+
+### Contracts: compile + test
+
+```bash
+npm run contracts:compile
+npm run contracts:test
+```
+
+### Local demo (recommended)
+
+Run the dashboard:
+
+```bash
+npm run dev
+```
+
+In another terminal, start a local EVM node (Hardhat) in a dedicated terminal session. Then deploy:
+
+```bash
+npx hardhat run scripts/deploy.ts
+```
+
+The frontend is pre-configured with the deterministic local addresses in `src/web3/addresses.ts` (chainId `31337`).
+
+### Testnet deploy (Base Sepolia recommended)
+
+1. Copy `.env.example` → `.env` and set:
+   - `DEPLOYER_PRIVATE_KEY`
+   - `RPC_URL_BASE_SEPOLIA`
+
+2. Deploy:
+
+```bash
+npx hardhat run scripts/deploy.ts --network baseSepolia
+```
+
+3. Copy the printed addresses into `src/web3/addresses.ts` under the Base Sepolia chainId.
+
+### Agent transactions (live “AI” activity)
+
+The agent script posts real on-chain orders. Use `--crisis` to make it aggressively buy.
+
+1. Set in `.env`:
+   - `AGENT_PRIVATE_KEY`
+   - `CHAIN_ID` (31337 for local, or the testnet chainId)
+   - `RPC_URL`
+
+2. Run:
+
+```bash
+npm run agents:steady
+# or
+npm run agents:crisis
+```
+
+If you’re running locally and your agent key is also the MockUSDC owner, you can mint with:
+
+```bash
+node --loader tsx ./scripts/agents/runAgents.ts --mint-local
+```
+
 ## Project structure
 
 ```
 src/
   App.tsx                 # Main dashboard + simulation loop
   components/
-    WorldMap.tsx          # SVG global map
+    WorldMap.tsx          # Leaflet map
+    OnchainMarketplace.tsx
     SystemsThinkingPanel.tsx
     AllocationMeters.tsx
   lib/
     data.ts               # Default nodes, seed events, insights
     simulation.ts         # Market drift + crisis bursts
+  web3/
+    addresses.ts
+    chains.ts
+    config.ts
+    contracts.ts
+contracts/
+  MockUSDC.sol
+  ResourceMarketplace.sol
+scripts/
+  deploy.ts
+  agents/runAgents.ts
 ```
 
 ## What this project is really about
