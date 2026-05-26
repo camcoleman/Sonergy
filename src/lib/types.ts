@@ -2,8 +2,8 @@ export type MarketNode = {
   id: string;
   name: string;
   regionTag: string;
-  mapX: number;
-  mapY: number;
+  lat: number;
+  lng: number;
   energyPrice: number;
   gpuSupply: number;
   renewablePct: number;

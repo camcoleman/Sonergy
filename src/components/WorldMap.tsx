@@ -1,4 +1,9 @@
+import { Fragment, useEffect, useMemo, useRef } from "react";
+import L from "leaflet";
+import { Circle, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 import type { MarketNode, MigrationArc } from "../lib/types";
+import { fmtCurrency } from "../lib/utils";
 
 type Props = {
   nodes: MarketNode[];
@@ -7,84 +12,125 @@ type Props = {
   overloadedNodeId: string | null;
 };
 
-const CONTINENTS = [
-  "M8 28 C12 22, 28 18, 38 22 C48 26, 52 32, 48 38 C42 44, 28 46, 18 42 C10 38, 6 34, 8 28 Z",
-  "M52 30 C58 24, 72 22, 82 26 C90 30, 92 36, 86 40 C78 44, 62 42, 54 38 C50 34, 50 32, 52 30 Z",
-  "M44 14 C50 10, 58 12, 60 18 C58 24, 50 26, 44 22 C42 18, 42 16, 44 14 Z",
-];
+function FitNodeBounds({ nodes }: { nodes: MarketNode[] }) {
+  const map = useMap();
+  const fitted = useRef(false);
+
+  useEffect(() => {
+    if (fitted.current || nodes.length === 0) return;
+    fitted.current = true;
+    const bounds = L.latLngBounds(nodes.map((n) => [n.lat, n.lng] as [number, number]));
+    map.fitBounds(bounds.pad(0.45), { animate: false });
+  }, [map, nodes]);
+
+  return null;
+}
+
+function createNodeIcon(node: MarketNode, hot: boolean, overloaded: boolean) {
+  const shortName = node.name.split(" ")[0];
+  return L.divIcon({
+    className: "sonergyLeafletIcon",
+    html: `
+      <div class="mapMarker ${hot ? "mapMarker--hot" : ""} ${overloaded ? "mapMarker--overload" : ""}">
+        <span class="mapMarkerDot"></span>
+        <span class="mapMarkerLabel">${shortName}</span>
+        ${overloaded ? '<span class="mapMarkerAlert">OVERLOAD</span>' : ""}
+      </div>
+    `,
+    iconSize: [96, 52],
+    iconAnchor: [48, 26],
+  });
+}
 
 export default function WorldMap({ nodes, crisis, migrationArcs, overloadedNodeId }: Props) {
-  const nodeById = Object.fromEntries(nodes.map((n) => [n.id, n]));
-  const recentArcs = migrationArcs.filter((a) => Date.now() - a.startedAt < 4000);
+  const nodeById = useMemo(() => Object.fromEntries(nodes.map((n) => [n.id, n])), [nodes]);
+  const recentArcs = migrationArcs.filter((a) => Date.now() - a.startedAt < 5000);
+
+  const migrationLines = recentArcs
+    .map((arc) => {
+      const from = nodeById[arc.fromNodeId];
+      const to = nodeById[arc.toNodeId];
+      if (!from || !to) return null;
+      return {
+        id: arc.id,
+        positions: [
+          [from.lat, from.lng],
+          [to.lat, to.lng],
+        ] as [number, number][],
+      };
+    })
+    .filter(Boolean) as { id: string; positions: [number, number][] }[];
 
   return (
     <div className={`worldMapWrap ${crisis ? "worldMapWrap--crisis" : ""}`}>
-      <svg viewBox="0 0 100 50" className="worldMap" role="img" aria-label="Global infrastructure map">
-        <defs>
-          <radialGradient id="mapGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="rgba(106,165,255,0.12)" />
-            <stop offset="100%" stopColor="rgba(106,165,255,0)" />
-          </radialGradient>
-        </defs>
+      <MapContainer
+        className="leafletMap"
+        center={[45, -20]}
+        zoom={3}
+        minZoom={2}
+        maxZoom={12}
+        scrollWheelZoom
+        worldCopyJump
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <FitNodeBounds nodes={nodes} />
 
-        <rect x="0" y="0" width="100" height="50" fill="url(#mapGlow)" />
-        <path d="M0 0 H100 V50 H0 Z" fill="rgba(8,14,28,0.5)" />
-
-        {CONTINENTS.map((d, i) => (
-          <path
-            key={i}
-            d={d}
-            className="continent"
-            fill={crisis ? "rgba(60,28,36,0.55)" : "rgba(22,38,72,0.75)"}
-            stroke={crisis ? "rgba(255,77,90,0.25)" : "rgba(90,115,173,0.35)"}
-            strokeWidth="0.35"
+        {migrationLines.map((line) => (
+          <Polyline
+            key={line.id}
+            positions={line.positions}
+            pathOptions={{
+              color: "#6aa5ff",
+              weight: 3,
+              opacity: 0.85,
+              dashArray: "10 8",
+            }}
           />
         ))}
-
-        {recentArcs.map((arc) => {
-          const from = nodeById[arc.fromNodeId];
-          const to = nodeById[arc.toNodeId];
-          if (!from || !to) return null;
-          return (
-            <line
-              key={arc.id}
-              x1={from.mapX}
-              y1={from.mapY}
-              x2={to.mapX}
-              y2={to.mapY}
-              className="migrationArc"
-            />
-          );
-        })}
 
         {nodes.map((n) => {
           const overloaded = overloadedNodeId === n.id;
           const hot = crisis && (overloaded || n.workloadsActive > 70);
           return (
-            <g key={n.id} className="mapNodeGroup">
-              {hot ? <circle cx={n.mapX} cy={n.mapY} r="4.5" className="mapNodePulse" /> : null}
-              <circle
-                cx={n.mapX}
-                cy={n.mapY}
-                r="2.2"
-                className={`mapNode ${hot ? "mapNode--hot" : ""}`}
-              />
-              <text x={n.mapX} y={n.mapY - 3.5} className="mapNodeLabel" textAnchor="middle">
-                {n.name.split(" ")[0]}
-              </text>
-              {overloaded && crisis ? (
-                <text x={n.mapX} y={n.mapY + 5.5} className="mapOverloadLabel" textAnchor="middle">
-                  OVERLOAD
-                </text>
+            <Fragment key={n.id}>
+              {hot ? (
+                <Circle
+                  center={[n.lat, n.lng]}
+                  radius={crisis ? 650_000 : 400_000}
+                  pathOptions={{
+                    color: "#ff4d5a",
+                    fillColor: "#ff4d5a",
+                    fillOpacity: 0.12,
+                    weight: 1,
+                    className: "mapPulseCircle",
+                  }}
+                />
               ) : null}
-            </g>
+              <Marker position={[n.lat, n.lng]} icon={createNodeIcon(n, hot, overloaded && crisis)}>
+                <Popup className="mapPopup">
+                  <strong>{n.name}</strong>
+                  <div>{n.regionTag}</div>
+                  <ul>
+                    <li>Energy: {fmtCurrency(n.energyPrice)}</li>
+                    <li>GPU supply: {Math.round(n.gpuSupply)}%</li>
+                    <li>Renewable: {Math.round(n.renewablePct)}%</li>
+                    <li>Carbon score: {n.carbonScore}</li>
+                    <li>Active workloads: {Math.round(n.workloadsActive)}</li>
+                  </ul>
+                </Popup>
+              </Marker>
+            </Fragment>
           );
         })}
-      </svg>
+      </MapContainer>
 
+      <div className="mapHint">Scroll to zoom · Drag to pan · Click nodes for details</div>
       <div className="mapLegend">
         <span>
-          <i className="legendDot legendDot--good" /> Stable
+          <i className="legendDot legendDot--good" /> Stable node
         </span>
         <span>
           <i className="legendDot legendDot--bad" /> Crisis / overload
