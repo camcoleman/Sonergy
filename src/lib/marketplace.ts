@@ -3,6 +3,12 @@ import { round } from "./utils";
 
 export type ResourceKind = "energy" | "compute";
 
+export type BuyDraft = {
+  nodeId: string;
+  resource: ResourceKind;
+  quantity: number;
+};
+
 export type PriceableNode = Pick<MarketNode, "energyPrice" | "gpuSupply">;
 
 export function gpuHourPrice(node: PriceableNode): number {

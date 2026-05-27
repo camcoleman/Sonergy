@@ -1,6 +1,6 @@
-import { Fragment, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, type MouseEvent } from "react";
 import L from "leaflet";
-import { Circle, Marker, Popup, Tooltip } from "react-leaflet";
+import { Circle, Marker, Popup } from "react-leaflet";
 import type { MarketNode } from "../lib/types";
 import { fmtCurrency, fmtSignedPct } from "../lib/utils";
 import { gpuHourPrice, type ResourceKind } from "../lib/marketplace";
@@ -10,18 +10,20 @@ type Props = {
   hot: boolean;
   overloaded: boolean;
   crisis: boolean;
+  selected: boolean;
+  onSelectNode: (node: MarketNode) => void;
   onBuyIntent: (node: MarketNode, resource: ResourceKind) => void;
 };
 
-function createNodeIcon(node: MarketNode, hot: boolean, overloaded: boolean) {
+function createNodeIcon(node: MarketNode, hot: boolean, overloaded: boolean, selected: boolean) {
   const shortName = node.name.split(" ")[0];
   return L.divIcon({
     className: "sonergyLeafletIcon",
     html: `
-      <div class="mapMarker ${hot ? "mapMarker--hot" : ""} ${overloaded ? "mapMarker--overload" : ""} mapMarker--interactive">
+      <div class="mapMarker ${hot ? "mapMarker--hot" : ""} ${overloaded ? "mapMarker--overload" : ""} ${selected ? "mapMarker--selected" : ""} mapMarker--interactive">
         <span class="mapMarkerDot"></span>
         <span class="mapMarkerLabel">${shortName}</span>
-        ${overloaded ? '<span class="mapMarkerAlert">OVERLOAD</span>' : ""}
+        ${overloaded ? '<span class="mapMarkerAlert">OVLD</span>' : ""}
       </div>
     `,
     iconSize: [96, 52],
@@ -29,18 +31,29 @@ function createNodeIcon(node: MarketNode, hot: boolean, overloaded: boolean) {
   });
 }
 
-export default function MapNodeMarker({ node, hot, overloaded, crisis, onBuyIntent }: Props) {
-  const [hovered, setHovered] = useState(false);
-  const hideTimer = useRef<number>();
+export default function MapNodeMarker({
+  node,
+  hot,
+  overloaded,
+  crisis,
+  selected,
+  onSelectNode,
+  onBuyIntent,
+}: Props) {
+  const markerRef = useRef<L.Marker>(null);
 
-  const showMenu = () => {
-    window.clearTimeout(hideTimer.current);
-    setHovered(true);
-  };
+  useEffect(() => {
+    const marker = markerRef.current;
+    if (!marker) return;
+    if (selected) marker.openPopup();
+    else marker.closePopup();
+  }, [selected]);
 
-  const hideMenu = () => {
-    hideTimer.current = window.setTimeout(() => setHovered(false), 120);
-  };
+  function handleBuy(resource: ResourceKind, e: MouseEvent) {
+    e.stopPropagation();
+    onSelectNode(node);
+    onBuyIntent(node, resource);
+  }
 
   return (
     <Fragment>
@@ -58,57 +71,36 @@ export default function MapNodeMarker({ node, hot, overloaded, crisis, onBuyInte
         />
       ) : null}
       <Marker
+        ref={markerRef}
         position={[node.lat, node.lng]}
-        icon={createNodeIcon(node, hot, overloaded && crisis)}
+        icon={createNodeIcon(node, hot, overloaded && crisis, selected)}
         eventHandlers={{
-          mouseover: showMenu,
-          mouseout: hideMenu,
+          click: (e) => {
+            L.DomEvent.stopPropagation(e);
+            onSelectNode(node);
+          },
         }}
       >
-        <Tooltip
-          permanent={hovered}
-          interactive
-          direction="top"
-          offset={[0, -34]}
-          className="mapBuyTooltip"
-          opacity={1}
-        >
-          <div className="mapBuyMenu" onMouseEnter={showMenu} onMouseLeave={hideMenu}>
-            <div className="mapBuyMenuTitle">{node.name.replace(" Node", "")}</div>
-            <div className="mapBuyMenuPrices">
-              <span>{fmtCurrency(node.energyPrice)}</span>
-              <span>${gpuHourPrice(node).toFixed(2)}/GPU-hr</span>
+        <Popup className="mapPopup mapPopup--ticket" closeButton={false} autoPan={false}>
+          <div className="mapTicket">
+            <div className="mapTicketHead">
+              <strong>{node.name.replace(" Node", "")}</strong>
+              <span className="mapTicketTag">{node.regionTag}</span>
             </div>
-            <div className="mapBuyMenuActions">
-              <button type="button" className="mapBuyBtn mapBuyBtn--energy" onClick={() => onBuyIntent(node, "energy")}>
-                Buy energy
+            <div className="mapTicketGrid">
+              <span>ENR {fmtCurrency(node.energyPrice)}</span>
+              <span>GPU ${gpuHourPrice(node).toFixed(3)}</span>
+              <span>DEV {fmtSignedPct(node.priceDeviationPct ?? 0, 1)}</span>
+              <span>LOAD {Math.round(node.workloadsActive)}%</span>
+            </div>
+            <div className="mapTicketActions">
+              <button type="button" className="mapBuyBtn mapBuyBtn--energy" onClick={(e) => handleBuy("energy", e)}>
+                BUY ENR
               </button>
-              <button type="button" className="mapBuyBtn mapBuyBtn--compute" onClick={() => onBuyIntent(node, "compute")}>
-                Buy compute
+              <button type="button" className="mapBuyBtn mapBuyBtn--compute" onClick={(e) => handleBuy("compute", e)}>
+                BUY GPU
               </button>
             </div>
-          </div>
-        </Tooltip>
-        <Popup className="mapPopup">
-          <strong>{node.name}</strong>
-          <div>{node.regionTag}</div>
-          <ul>
-            <li>Energy: {fmtCurrency(node.energyPrice)}</li>
-            <li>Compute: ${gpuHourPrice(node).toFixed(3)}/GPU-hr</li>
-            <li>GPU supply: {Math.round(node.gpuSupply)}%</li>
-            <li>Renewable: {Math.round(node.renewablePct)}%</li>
-            <li>Carbon score: {node.carbonScore}</li>
-            <li>Active workloads: {Math.round(node.workloadsActive)}</li>
-            <li>Baseline: ${(node.priceBaseline ?? node.energyPrice).toFixed(3)}</li>
-            <li>Deviation: {fmtSignedPct(node.priceDeviationPct ?? 0, 1)}</li>
-          </ul>
-          <div className="mapPopupBuy">
-            <button type="button" className="mapBuyBtn mapBuyBtn--energy" onClick={() => onBuyIntent(node, "energy")}>
-              Buy energy
-            </button>
-            <button type="button" className="mapBuyBtn mapBuyBtn--compute" onClick={() => onBuyIntent(node, "compute")}>
-              Buy compute
-            </button>
           </div>
         </Popup>
       </Marker>

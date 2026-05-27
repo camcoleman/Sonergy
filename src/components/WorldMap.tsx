@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
-import { MapContainer, Polyline, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, Polyline, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import type { MarketNode, MigrationArc } from "../lib/types";
 import type { ResourceKind } from "../lib/marketplace";
@@ -11,6 +11,8 @@ type Props = {
   crisis: boolean;
   migrationArcs: MigrationArc[];
   overloadedNodeId: string | null;
+  selectedNodeId: string | null;
+  onSelectNode: (node: MarketNode | null) => void;
   onBuyIntent: (node: MarketNode, resource: ResourceKind) => void;
 };
 
@@ -28,7 +30,22 @@ function FitNodeBounds({ nodes }: { nodes: MarketNode[] }) {
   return null;
 }
 
-export default function WorldMap({ nodes, crisis, migrationArcs, overloadedNodeId, onBuyIntent }: Props) {
+function MapBackgroundClick({ onClearSelection }: { onClearSelection: () => void }) {
+  useMapEvents({
+    click: () => onClearSelection(),
+  });
+  return null;
+}
+
+export default function WorldMap({
+  nodes,
+  crisis,
+  migrationArcs,
+  overloadedNodeId,
+  selectedNodeId,
+  onSelectNode,
+  onBuyIntent,
+}: Props) {
   const nodeById = useMemo(() => Object.fromEntries(nodes.map((n) => [n.id, n])), [nodes]);
   const recentArcs = migrationArcs.filter((a) => Date.now() - a.startedAt < 5000);
 
@@ -63,6 +80,7 @@ export default function WorldMap({ nodes, crisis, migrationArcs, overloadedNodeI
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <FitNodeBounds nodes={nodes} />
+        <MapBackgroundClick onClearSelection={() => onSelectNode(null)} />
 
         {migrationLines.map((line) => (
           <Polyline
@@ -89,22 +107,24 @@ export default function WorldMap({ nodes, crisis, migrationArcs, overloadedNodeI
               hot={hot}
               overloaded={overloaded}
               crisis={crisis}
+              selected={selectedNodeId === n.id}
+              onSelectNode={onSelectNode}
               onBuyIntent={onBuyIntent}
             />
           );
         })}
       </MapContainer>
 
-      <div className="mapHint">Scroll to zoom · Hover cities to buy · Click for venue details</div>
+      <div className="mapHint">CLICK VENUE TO TRADE · PAN/ZOOM MAP · ESC MAP CLICK TO DESELECT</div>
       <div className="mapLegend">
         <span>
-          <i className="legendDot legendDot--good" /> Stable node
+          <i className="legendDot legendDot--good" /> Stable
         </span>
         <span>
-          <i className="legendDot legendDot--bad" /> Crisis / overload
+          <i className="legendDot legendDot--bad" /> Stress
         </span>
         <span>
-          <i className="legendLine" /> Agent migration
+          <i className="legendDot legendDot--selected" /> Selected
         </span>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatUnits } from "viem";
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import {
@@ -8,7 +8,7 @@ import {
   type ResourceKind,
 } from "../lib/marketplace";
 import { fmtCurrency } from "../lib/utils";
-import type { BuyDraft } from "./BuyOrderSheet";
+import type { BuyDraft } from "../lib/marketplace";
 import { Marketplace_ABI, MockUSDC_ABI, ResourceType, Side } from "../web3/contracts";
 import { ADDRESSES_BY_CHAIN } from "../web3/addresses";
 
@@ -58,6 +58,14 @@ export default function OnchainMarketplace({
   const [resource, setResource] = useState<ResourceKind>("energy");
   const [nodeId, setNodeId] = useState(nodes[0]?.id ?? "oregon-solar");
   const [quantity, setQuantity] = useState("10");
+
+  useEffect(() => {
+    if (buyIntent?.nodeId) {
+      setNodeId(buyIntent.nodeId);
+      setResource(buyIntent.resource);
+      setQuantity(String(buyIntent.quantity));
+    }
+  }, [buyIntent]);
 
   const selectedNode = nodes.find((n) => n.id === nodeId);
   const unitPrice = selectedNode ? unitPriceForResource(selectedNode, resource) : 0;
@@ -133,18 +141,17 @@ export default function OnchainMarketplace({
           className={`tab ${tab === "marketplace" ? "tab--active" : ""}`}
           onClick={() => setTab("marketplace")}
         >
-          Marketplace
+          BLOTTER
         </button>
         <button type="button" className={`tab ${tab === "onchain" ? "tab--active" : ""}`} onClick={() => setTab("onchain")}>
-          On-chain ledger
+          CHAIN
         </button>
       </div>
 
       {tab === "marketplace" ? (
         <div className="marketplacePanel">
           <div className="marketplaceHint">
-            Hover a city on the map for quick buy, or configure an order here. Simulated fills post to the trade tape
-            instantly.
+            Click a venue on the map or blotter. Use the order ticket above for MKT EXEC or CHAIN routing.
           </div>
 
           <div className="onchainForm marketplaceForm">
@@ -193,7 +200,7 @@ export default function OnchainMarketplace({
             </div>
 
             <button type="button" className="btn btnPrimary" onClick={submitPanelBuy}>
-              Review & buy
+              LOAD TICKET
             </button>
           </div>
 

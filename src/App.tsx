@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useChainId } from "wagmi";
 import AllocationMeters from "./components/AllocationMeters";
-import BuyOrderSheet, { type BuyDraft } from "./components/BuyOrderSheet";
 import OnchainMarketplace from "./components/OnchainMarketplace";
+import OrderTicket from "./components/OrderTicket";
 import WorldMap from "./components/WorldMap";
 import { useMarketplaceOrder } from "./hooks/useMarketplaceOrder";
 import {
@@ -19,11 +19,12 @@ import {
   resourceShort,
   totalCostUsd,
   unitPriceForResource,
+  type BuyDraft,
   type ResourceKind,
 } from "./lib/marketplace";
 import { genCrisisBurst, genMarketUpdate } from "./lib/simulation";
 import type { Activity, CrisisState, MarketNode, MigrationArc, ScoutConfig, ScoutStatus } from "./lib/types";
-import { ACTIVITY_PRIORITY, clamp, fmtCurrency, fmtPct, fmtSignedPct, timeAgo, uid } from "./lib/utils";
+import { ACTIVITY_PRIORITY, clamp, fmtCurrency, fmtSignedPct, timeAgo, uid } from "./lib/utils";
 import { DEFAULT_CHAIN_ID, SUPPORTED_CHAINS } from "./web3/chains";
 
 export default function App() {
@@ -57,6 +58,7 @@ export default function App() {
   const [agentAllocation, setAgentAllocation] = useState(STEADY_AGENT_ALLOCATION);
   const [migrationArcs, setMigrationArcs] = useState<MigrationArc[]>([]);
   const [buyDraft, setBuyDraft] = useState<BuyDraft | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   const crisisRef = useRef(crisis);
   crisisRef.current = crisis;
@@ -79,6 +81,8 @@ export default function App() {
     setHumanAllocation(STEADY_HUMAN_ALLOCATION);
     setAgentAllocation(STEADY_AGENT_ALLOCATION);
     setMigrationArcs([]);
+    setBuyDraft(null);
+    setSelectedNodeId(null);
     setNowMs(Date.now());
   }, []);
 
@@ -156,7 +160,19 @@ export default function App() {
     [buyDraft, nodes],
   );
 
+  const selectVenue = useCallback((node: MarketNode | null) => {
+    setSelectedNodeId(node?.id ?? null);
+    if (node) {
+      setBuyDraft((prev) => ({
+        nodeId: node.id,
+        resource: prev?.nodeId === node.id ? prev.resource : "energy",
+        quantity: prev?.nodeId === node.id ? prev.quantity : 10,
+      }));
+    }
+  }, []);
+
   const openBuyIntent = useCallback((node: MarketNode, resource: ResourceKind, quantity = 10) => {
+    setSelectedNodeId(node.id);
     setBuyDraft({ nodeId: node.id, resource, quantity });
   }, []);
 
@@ -200,7 +216,7 @@ export default function App() {
         }),
       );
 
-      setBuyDraft(null);
+      setBuyDraft({ nodeId: node.id, resource: draft.resource, quantity: draft.quantity });
     },
     [nodes],
   );
@@ -213,7 +229,6 @@ export default function App() {
         unitPriceUsd,
         quantity: draft.quantity,
       });
-      setBuyDraft(null);
     },
     [createBuyOrder],
   );
@@ -327,23 +342,38 @@ export default function App() {
       <div className="topbar">
         <div className="brand">
           <div className="logoMark" aria-hidden="true" />
-          <div>Sonergy</div>
+          <div className="brandTitle">SONERGY</div>
+          <div className="brandSub">RESOURCE DESK</div>
+        </div>
+        <div className="deskTicker">
+          <span>
+            AVG ENR <strong>{fmtCurrency(stats.avgEnergy)}</strong>
+          </span>
+          <span>
+            REN <strong>{Math.round(stats.avgRenew)}%</strong>
+          </span>
+          <span>
+            CARB <strong>{Math.round(stats.avgCarbon)}</strong>
+          </span>
+          <span>
+            EFF <strong>{Math.round(stats.avgEfficiency)}</strong>
+          </span>
+          <span className={scoutAlertCount > 0 ? "deskTickerAlert" : ""}>
+            SCOUT <strong>{scoutAlertCount}</strong>
+          </span>
         </div>
         <div className="topbarSpacer" />
         <div className="walletSlot">
           <ConnectButton />
         </div>
-        <button type="button" className="btn btnGhost" onClick={resetDemo}>
-          Reset demo
+        <button type="button" className="btn btnGhost btnXs" onClick={resetDemo}>
+          RST
         </button>
-        <div className="pill" aria-label="System health">
+        <div className="pill pillDesk" aria-label="System health">
           <span className={`dot ${systemHealth.dot} ${crisis.active ? "blink" : ""}`} />
           <span>
-            System: <strong>{systemHealth.label}</strong>
+            SYS <strong>{systemHealth.label.toUpperCase()}</strong>
           </span>
-        </div>
-        <div className={`pill ${scoutAlertCount > 0 ? "scoutCounter scoutCounter--active" : "scoutCounter"}`}>
-          ALERTS: <strong>{scoutAlertCount}</strong>
         </div>
       </div>
 
@@ -377,15 +407,28 @@ export default function App() {
       ) : null}
 
       <div className="content">
-        <section className="panel humanFacing" aria-label="Live market">
+        <section className="panel humanFacing panelDesk" aria-label="Trading desk">
           <div className="panelHeader">
-            <h2>Markets</h2>
-            <div className="pill pillCompact">
+            <h2>Desk</h2>
+            <div className="pill pillCompact pillDesk">
               <span className="dot dotAccent" />
-              <span>SIM + ON-CHAIN</span>
+              <span>SIM · CHAIN</span>
             </div>
           </div>
-          <div className="panelBody">
+          <div className="panelBody panelBodyDesk">
+            <OrderTicket
+              node={buyNode}
+              draft={buyDraft}
+              canSubmitOnchain={canUseOnchain}
+              onchainPending={onchainPending}
+              onDraftChange={setBuyDraft}
+              onClear={() => {
+                setBuyDraft(null);
+                setSelectedNodeId(null);
+              }}
+              onExecuteSimulated={executeSimulatedBuy}
+              onSubmitOnchain={submitOnchainBuy}
+            />
             <OnchainMarketplace
               nodes={nodes.map((n) => ({
                 id: n.id,
@@ -402,7 +445,7 @@ export default function App() {
             />
             <div className="scoutWatchlist">
               <div className="scoutWatchlistHeader">
-                <strong>Price Scout Watchlist</strong>
+                <strong>SCOUT WATCH</strong>
                 <div className="scoutFilterRow">
                   <label>
                     <input
@@ -457,75 +500,71 @@ export default function App() {
                 </table>
               )}
             </div>
-            <div className="tableWrap">
-              <table>
+            <div className="tableWrap blotterWrap">
+              <table className="blotter">
                 <thead>
                   <tr>
-                    <th>Venue</th>
-                    <th>kWh</th>
-                    <th>GPU%</th>
-                    <th>REN%</th>
-                    <th>LOAD</th>
+                    <th>VENUE</th>
+                    <th>ENR</th>
+                    <th>GPU</th>
+                    <th>DEV</th>
+                    <th>TRD</th>
                   </tr>
                 </thead>
                 <tbody>
                   {nodes.map((n) => (
-                    <tr key={n.id} className={`marketRow marketRow--${n.scoutStatus ?? "normal"}`}>
+                    <tr
+                      key={n.id}
+                      className={`marketRow marketRow--${n.scoutStatus ?? "normal"} ${selectedNodeId === n.id ? "marketRow--selected" : ""}`}
+                      onClick={() => selectVenue(n)}
+                    >
                       <td>
                         <div className="nodeName">
                           <span>{n.name.replace(" Node", "")}</span>
                           <span>{n.regionTag}</span>
                         </div>
                       </td>
-                      <td>{fmtCurrency(n.energyPrice)}</td>
-                      <td>
-                        <div className="barCell">
-                          <div className="bar barInline">
-                            <i style={{ width: `${clamp(n.gpuSupply, 0, 100)}%` }} />
-                          </div>
-                          <strong>{Math.round(n.gpuSupply)}</strong>
-                        </div>
+                      <td className="num">{fmtCurrency(n.energyPrice)}</td>
+                      <td className="num">{Math.round(n.gpuSupply)}%</td>
+                      <td className={`num ${(n.priceDeviationPct ?? 0) < 0 ? "numDown" : (n.priceDeviationPct ?? 0) > 0 ? "numUp" : ""}`}>
+                        {fmtSignedPct(n.priceDeviationPct ?? 0, 1)}
                       </td>
-                      <td>{fmtPct(n.renewablePct)}</td>
-                      <td>
-                        <div className="barCell">
-                          <div className="bar barInline">
-                            <i
-                              className="barWorkload"
-                              style={{ width: `${clamp(n.workloadsActive, 0, 100)}%` }}
-                            />
-                          </div>
-                          <strong>{Math.round(n.workloadsActive)}</strong>
-                        </div>
+                      <td className="blotterTrade">
+                        <button
+                          type="button"
+                          className="blotterBtn blotterBtn--enr"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openBuyIntent(n, "energy");
+                          }}
+                        >
+                          ENR
+                        </button>
+                        <button
+                          type="button"
+                          className="blotterBtn blotterBtn--gpu"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openBuyIntent(n, "compute");
+                          }}
+                        >
+                          GPU
+                        </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <div className="metricsRow">
-              <div className="metricCard">
-                <div className="label">Avg energy cost</div>
-                <div className="value">{fmtCurrency(stats.avgEnergy).replace("/kWh", "")}</div>
-              </div>
-              <div className="metricCard">
-                <div className="label">Renewables</div>
-                <div className="value">{Math.round(stats.avgRenew)}%</div>
-              </div>
-              <div className="metricCard">
-                <div className="label">Efficiency</div>
-                <div className="value">{Math.round(stats.avgEfficiency)}</div>
-              </div>
-            </div>
           </div>
         </section>
 
-        <section className="panel panelCenter" aria-label="Global infrastructure">
+        <section className="panel panelCenter panelDesk" aria-label="Venue map">
           <div className="panelHeader">
-            <h2>Map</h2>
-            <div className="pill pillCompact">
+            <h2>Venue Map</h2>
+            <div className="pill pillCompact pillDesk">
               <span className={`dot ${crisis.active ? "bad blink" : "good"}`} />
-              <span>{crisis.active ? "Crisis mode" : "Steady state"}</span>
+              <span>{crisis.active ? "SHOCK" : "STABLE"}</span>
             </div>
           </div>
           <div className="panelBody panelBodyMap">
@@ -534,6 +573,8 @@ export default function App() {
               crisis={crisis.active}
               migrationArcs={migrationArcs}
               overloadedNodeId={overloadedNodeId}
+              selectedNodeId={selectedNodeId}
+              onSelectNode={selectVenue}
               onBuyIntent={openBuyIntent}
             />
             <AllocationMeters
@@ -541,21 +582,12 @@ export default function App() {
               agentPct={agentAllocation}
               crisis={crisis.active}
             />
-            <div className="nodeCardsCompact">
-              {nodes.map((n) => (
-                <div key={n.id} className={`nodeMini ${overloadedNodeId === n.id && crisis.active ? "nodeMini--hot" : ""}`}>
-                  <strong>{n.name.split(" ")[0]}</strong>
-                  <span>Carbon {n.carbonScore}</span>
-                  <span>{fmtCurrency(n.energyPrice)}</span>
-                </div>
-              ))}
-            </div>
           </div>
         </section>
 
-        <section className="panel" aria-label="Trade tape">
+        <section className="panel panelDesk" aria-label="Trade tape">
           <div className="panelHeader">
-            <h2>Trade Tape</h2>
+            <h2>Tape</h2>
             <div className="pill pillCompact">
               <span className="dot dotAccent" />
               <span>{sortedActivity.length} prints</span>
@@ -640,17 +672,6 @@ export default function App() {
       </div>
 
       {crisis.active ? <div className="crisisOverlay" aria-hidden="true" /> : null}
-
-      <BuyOrderSheet
-        open={Boolean(buyDraft)}
-        node={buyNode}
-        draft={buyDraft}
-        canSubmitOnchain={canUseOnchain}
-        onchainPending={onchainPending}
-        onClose={() => setBuyDraft(null)}
-        onExecuteSimulated={executeSimulatedBuy}
-        onSubmitOnchain={submitOnchainBuy}
-      />
     </div>
   );
 }

@@ -1,14 +1,15 @@
 :root {
   color-scheme: dark;
-  --bg: #070c18;
-  --panel: #0f1930;
-  --text: #e6eefc;
-  --muted: rgba(230, 238, 252, 0.7);
-  --border: rgba(90, 115, 173, 0.35);
-  --accent: #6aa5ff;
-  --good: #2fe3a6;
-  --warn: #ffcc66;
-  --bad: #ff4d5a;
+  --bg: #050810;
+  --panel: #0c1220;
+  --text: #d8e4f8;
+  --muted: rgba(184, 200, 230, 0.62);
+  --border: rgba(72, 92, 130, 0.45);
+  --accent: #5b9dff;
+  --good: #28d69a;
+  --warn: #e6b84d;
+  --bad: #f04d58;
+  --desk: #0a101c;
 }
 
 * {
@@ -71,8 +72,52 @@ body {
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-weight: 800;
+}
+
+.brandTitle {
+  font-size: 13px;
+  letter-spacing: 0.12em;
+}
+
+.brandSub {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  border-left: 1px solid var(--border);
+  padding-left: 8px;
+}
+
+.deskTicker {
+  display: flex;
+  gap: 14px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  padding: 0 8px;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+.deskTicker strong {
+  color: var(--text);
+  margin-left: 4px;
+}
+
+.deskTickerAlert strong {
+  color: #ffb4ba;
+}
+
+.pillDesk {
+  border-radius: 3px;
+  padding: 5px 8px;
+}
+
+.btnXs {
+  padding: 5px 8px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
 }
 
 .logoMark {
@@ -220,11 +265,22 @@ body {
 }
 
 .panel {
-  background: rgba(10, 16, 32, 0.92);
+  background: var(--desk);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 4px;
   overflow: hidden;
   box-shadow: none;
+}
+
+.panelDesk {
+  background: var(--desk);
+}
+
+.panelBodyDesk {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
 }
 
 .panelHeader {
@@ -410,6 +466,16 @@ th {
   animation: markerPulse 1.2s ease-out infinite;
 }
 
+.mapMarker--selected .mapMarkerDot {
+  background: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 5px rgba(91, 157, 255, 0.55);
+}
+
+.mapMarker--selected .mapMarkerLabel {
+  color: var(--accent);
+}
+
 .mapMarkerLabel {
   font-size: 10px;
   font-weight: 800;
@@ -462,40 +528,51 @@ th {
   font-size: 13px;
 }
 
-.mapBuyTooltip {
-  background: rgba(10, 18, 36, 0.96) !important;
-  border: 1px solid rgba(106, 165, 255, 0.45);
-  border-radius: 10px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+.mapPopup--ticket .leaflet-popup-content-wrapper {
+  background: rgba(8, 12, 22, 0.98);
+  border: 1px solid rgba(91, 157, 255, 0.5);
+  border-radius: 4px;
   color: var(--text);
-  padding: 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
-.mapBuyTooltip::before {
-  border-top-color: rgba(106, 165, 255, 0.45) !important;
+.mapPopup--ticket .leaflet-popup-tip {
+  background: rgba(8, 12, 22, 0.98);
 }
 
-.mapBuyMenu {
-  min-width: 180px;
-  padding: 8px;
+.mapTicket {
+  min-width: 200px;
 }
 
-.mapBuyMenuTitle {
-  font-size: 12px;
-  font-weight: 800;
-  margin-bottom: 4px;
-}
-
-.mapBuyMenuPrices {
+.mapTicketHead {
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
   gap: 8px;
+  margin-bottom: 6px;
+}
+
+.mapTicketHead strong {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.mapTicketTag {
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
+
+.mapTicketGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 8px;
   font-size: 10px;
   color: var(--muted);
   margin-bottom: 8px;
 }
 
-.mapBuyMenuActions {
+.mapTicketActions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
@@ -525,101 +602,225 @@ th {
   border-color: rgba(106, 165, 255, 0.45);
 }
 
-.mapPopupBuy {
+.orderTicket {
+  border: 1px solid rgba(91, 157, 255, 0.35);
+  border-radius: 4px;
+  background: rgba(6, 10, 20, 0.95);
+  padding: 8px;
+}
+
+.orderTicket--empty {
+  border-color: var(--border);
+  min-height: 120px;
+}
+
+.orderTicketHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.orderTicketLabel {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.orderTicketVenue {
+  display: block;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
+.orderTicketTag {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.orderTicketEmptyMsg {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 12px 4px;
+}
+
+.orderTicketSide {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
-  margin-top: 10px;
+  margin-bottom: 8px;
 }
 
-.buySheetBackdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(4, 8, 18, 0.72);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 5000;
-  padding: 16px;
-}
-
-.buySheet {
-  width: min(420px, 100%);
-  border: 1px solid rgba(106, 165, 255, 0.45);
-  border-radius: 14px;
-  background: rgba(10, 18, 36, 0.98);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
-  padding: 14px;
-}
-
-.buySheetHeader {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.buySheetEyebrow {
-  font-size: 10px;
-  letter-spacing: 0.08em;
+.orderTicketSideBtn {
+  border: 1px solid var(--border);
+  background: rgba(12, 18, 32, 0.9);
   color: var(--muted);
-  margin-bottom: 4px;
+  border-radius: 3px;
+  padding: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  cursor: pointer;
 }
 
-.buySheetClose {
-  font-size: 22px;
-  line-height: 1;
-  padding: 2px 8px;
+.orderTicketSideBtn--active {
+  color: var(--text);
+  border-color: rgba(91, 157, 255, 0.55);
+  background: rgba(91, 157, 255, 0.12);
 }
 
-.buySheetGrid {
+.orderTicketQuotes {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 12px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
 }
 
-.buySheetStat {
-  border: 1px solid rgba(90, 115, 173, 0.25);
-  border-radius: 10px;
-  padding: 8px;
+.orderTicketQuotes strong {
+  display: block;
+  font-size: 11px;
+  color: var(--text);
+  margin-top: 2px;
+}
+
+.orderTicketRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 8px;
+}
+
+.orderTicketRow label {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 11px;
-}
-
-.buySheetStat span {
+  font-size: 9px;
+  letter-spacing: 0.08em;
   color: var(--muted);
 }
 
-.buySheetField {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 10px;
-}
-
-.buySheetField input {
-  background: rgba(16, 28, 57, 0.55);
+.orderTicketRow input {
+  background: rgba(8, 12, 22, 0.9);
+  border: 1px solid var(--border);
+  border-radius: 3px;
   color: var(--text);
-  border: 1px solid rgba(90, 115, 173, 0.28);
-  padding: 10px 12px;
-  border-radius: 10px;
-  outline: none;
-}
-
-.buySheetTotal {
+  padding: 6px 8px;
   font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 12px;
 }
 
-.buySheetActions {
+.orderTicketPx {
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.orderTicketPx strong {
+  display: block;
+  font-size: 12px;
+  color: var(--text);
+  margin-top: 2px;
+}
+
+.orderTicketActions {
   display: grid;
-  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.orderTicketFoot {
+  margin-top: 6px;
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.btnExec {
+  border-color: rgba(40, 214, 154, 0.5);
+  background: rgba(40, 214, 154, 0.15);
+  color: #b8f5df;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.btnChain {
+  letter-spacing: 0.08em;
+  font-weight: 800;
+}
+
+.blotterWrap {
+  max-height: 280px;
+}
+
+.blotter th,
+.blotter td {
+  font-size: 10px;
+  padding: 4px 5px;
+  white-space: nowrap;
+}
+
+.blotter tbody tr {
+  cursor: pointer;
+}
+
+.marketRow--selected td {
+  background: rgba(91, 157, 255, 0.14) !important;
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.blotterTrade {
+  display: flex;
+  gap: 4px;
+}
+
+.blotterBtn {
+  border: 1px solid var(--border);
+  background: rgba(8, 12, 22, 0.9);
+  color: var(--muted);
+  border-radius: 2px;
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+}
+
+.blotterBtn:hover {
+  color: var(--text);
+  border-color: rgba(91, 157, 255, 0.5);
+}
+
+.blotterBtn--enr {
+  border-color: rgba(40, 214, 154, 0.35);
+}
+
+.blotterBtn--gpu {
+  border-color: rgba(91, 157, 255, 0.4);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.numUp {
+  color: #ffb4ba;
+}
+
+.numDown {
+  color: #9ef0d0;
+}
+
+.legendDot--selected {
+  background: #fff;
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .marketplacePanel {
