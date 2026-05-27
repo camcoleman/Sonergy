@@ -41,6 +41,20 @@ export type MigrationArc = {
   fromNodeId: string;
   toNodeId: string;
   startedAt: number;
+  kind?: "simulation" | "collection";
+  durationMs?: number;
+};
+
+export type CollectedAsset = {
+  id: string;
+  orderId: string;
+  buyer: string;
+  accessKey: string;
+  allocationNodeId: string;
+  resourceType: "compute" | "energy";
+  leaseHoursRemaining: number;
+  collectedAt: number;
+  venueLabel: string;
 };
 
 export type SystemsInsight = {

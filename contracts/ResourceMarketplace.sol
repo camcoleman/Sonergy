@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract ResourceMarketplace {
+
     enum ResourceType {
         GPU_HOUR,
         KWH
@@ -19,6 +20,7 @@ contract ResourceMarketplace {
         ResourceType resourceType;
         Side side;
         bytes32 nodeIdHash;
+        string allocationNodeId;
         uint256 unitPrice; // paymentToken decimals (mUSDC: 6)
         uint256 quantity; // resource units (integer for demo)
         uint256 filled;
@@ -32,6 +34,7 @@ contract ResourceMarketplace {
         ResourceType resourceType,
         Side side,
         bytes32 indexed nodeIdHash,
+        string allocationNodeId,
         uint256 unitPrice,
         uint256 quantity,
         uint64 expiry
@@ -39,6 +42,14 @@ contract ResourceMarketplace {
 
     event OrderCancelled(uint256 indexed orderId, address indexed maker);
     event OrderFilled(uint256 indexed orderId, address indexed buyer, address indexed seller, uint256 amount, uint256 totalPaid);
+
+    /// @notice Emitted when a buyer collects physical/digital rights after fill (compute SSH key or energy migration bundle).
+    event ResourceCollected(
+        bytes32 indexed orderId,
+        address indexed buyer,
+        string accessKey,
+        string allocationNodeId
+    );
 
     IERC20 public immutable paymentToken;
     uint256 public nextOrderId;
@@ -61,12 +72,14 @@ contract ResourceMarketplace {
         ResourceType resourceType,
         Side side,
         bytes32 nodeIdHash,
+        string calldata allocationNodeId,
         uint256 unitPrice,
         uint256 quantity,
         uint64 expiry
     ) external returns (uint256 orderId) {
         require(unitPrice > 0, "unitPrice=0");
         require(quantity > 0, "quantity=0");
+        require(bytes(allocationNodeId).length > 0, "allocationNodeId=empty");
         if (expiry != 0) require(expiry > block.timestamp, "expiry<=now");
 
         orderId = nextOrderId++;
@@ -75,6 +88,7 @@ contract ResourceMarketplace {
             resourceType: resourceType,
             side: side,
             nodeIdHash: nodeIdHash,
+            allocationNodeId: allocationNodeId,
             unitPrice: unitPrice,
             quantity: quantity,
             filled: 0,
@@ -85,7 +99,17 @@ contract ResourceMarketplace {
         _openIndex[orderId] = _openOrderIds.length + 1;
         _openOrderIds.push(orderId);
 
-        emit OrderCreated(orderId, msg.sender, resourceType, side, nodeIdHash, unitPrice, quantity, expiry);
+        emit OrderCreated(
+            orderId,
+            msg.sender,
+            resourceType,
+            side,
+            nodeIdHash,
+            allocationNodeId,
+            unitPrice,
+            quantity,
+            expiry
+        );
     }
 
     function cancelOrder(uint256 orderId) external {
@@ -119,6 +143,36 @@ contract ResourceMarketplace {
         }
 
         emit OrderFilled(orderId, buyer, seller, amount, total);
+
+        string memory accessKey = _generateAccessKey(orderId, buyer, amount, o.resourceType);
+        emit ResourceCollected(bytes32(orderId), buyer, accessKey, o.allocationNodeId);
+    }
+
+    /// @dev Simulates an encrypted JWT / SSH bare-metal access token or energy migration bundle ID.
+    function _generateAccessKey(
+        uint256 orderId,
+        address buyer,
+        uint256 amount,
+        ResourceType resourceType
+    ) internal view returns (string memory) {
+        bytes32 seed = keccak256(abi.encodePacked(orderId, buyer, amount, block.timestamp, block.prevrandao));
+        string memory hexSeed = _bytes32ToHex(seed);
+
+        if (resourceType == ResourceType.GPU_HOUR) {
+            return string(abi.encodePacked("sonergy_sk_live_", hexSeed));
+        }
+        return string(abi.encodePacked("sonergy_mig_bundle_", hexSeed));
+    }
+
+    function _bytes32ToHex(bytes32 data) internal pure returns (string memory) {
+        bytes memory alphabet = "0123456789abcdef";
+        bytes memory str = new bytes(64);
+        for (uint256 i = 0; i < 32; i++) {
+            uint8 b = uint8(data[i]);
+            str[i * 2] = alphabet[b >> 4];
+            str[i * 2 + 1] = alphabet[b & 0x0f];
+        }
+        return string(str);
     }
 
     function _removeOpen(uint256 orderId) internal {
@@ -134,4 +188,3 @@ contract ResourceMarketplace {
         delete _openIndex[orderId];
     }
 }
-

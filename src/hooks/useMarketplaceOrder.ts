@@ -78,7 +78,7 @@ export function useMarketplaceOrder(onNewOnchainActivity: (a: Activity) => void)
           abi: Marketplace_ABI,
           address: marketplaceAddress,
           functionName: "createOrder",
-          args: [resourceType, Side.BUY, nodeHash(params.nodeId), price, qty, 0],
+          args: [resourceType, Side.BUY, nodeHash(params.nodeId), params.nodeId, price, qty, 0],
         });
       },
     [canUseOnchain, marketplaceAddress, writeContractAsync],

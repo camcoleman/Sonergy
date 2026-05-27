@@ -9,6 +9,8 @@ import {
 } from "../lib/marketplace";
 import { fmtCurrency } from "../lib/utils";
 import type { BuyDraft } from "../lib/marketplace";
+import type { CollectedAsset } from "../lib/types";
+import CollectedAssetsPanel from "./CollectedAssetsPanel";
 import { Marketplace_ABI, MockUSDC_ABI, ResourceType, Side } from "../web3/contracts";
 import { ADDRESSES_BY_CHAIN } from "../web3/addresses";
 
@@ -32,6 +34,7 @@ type Props = {
     unitPriceUsd: string;
     quantity: number;
   }) => Promise<void>;
+  collectedAssets: CollectedAsset[];
 };
 
 type Tab = "marketplace" | "onchain";
@@ -48,6 +51,7 @@ export default function OnchainMarketplace({
   canUseOnchain,
   isPending,
   createBuyOrder,
+  collectedAssets,
 }: Props) {
   const { address } = useAccount();
   const addrs = ADDRESSES_BY_CHAIN[chainId];
@@ -135,6 +139,7 @@ export default function OnchainMarketplace({
 
   return (
     <div className="onchainWrap">
+      <CollectedAssetsPanel assets={collectedAssets} />
       <div className="tabs">
         <button
           type="button"
@@ -293,9 +298,9 @@ export default function OnchainMarketplace({
               const maker = o[0] as `0x${string}`;
               const rType = Number(o[1]);
               const s = Number(o[2]);
-              const unitPriceRaw = o[4] as bigint;
-              const qty = o[5] as bigint;
-              const filled = o[6] as bigint;
+              const unitPriceRaw = o[5] as bigint;
+              const qty = o[6] as bigint;
+              const filled = o[7] as bigint;
               const remaining = qty - filled;
 
               return (

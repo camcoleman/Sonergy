@@ -5,7 +5,9 @@ import AllocationMeters from "./components/AllocationMeters";
 import OnchainMarketplace from "./components/OnchainMarketplace";
 import OrderTicket from "./components/OrderTicket";
 import WorldMap from "./components/WorldMap";
+import { DEFAULT_AGENT_ORIGIN_NODE } from "./lib/collection";
 import { useMarketplaceOrder } from "./hooks/useMarketplaceOrder";
+import { useResourceCollection } from "./hooks/useResourceCollection";
 import {
   cloneDefaultNodes,
   CRISIS_AGENT_ALLOCATION,
@@ -23,7 +25,15 @@ import {
   type ResourceKind,
 } from "./lib/marketplace";
 import { genCrisisBurst, genMarketUpdate } from "./lib/simulation";
-import type { Activity, CrisisState, MarketNode, MigrationArc, ScoutConfig, ScoutStatus } from "./lib/types";
+import type {
+  Activity,
+  CollectedAsset,
+  CrisisState,
+  MarketNode,
+  MigrationArc,
+  ScoutConfig,
+  ScoutStatus,
+} from "./lib/types";
 import { ACTIVITY_PRIORITY, clamp, fmtCurrency, fmtSignedPct, timeAgo, uid } from "./lib/utils";
 import { DEFAULT_CHAIN_ID, SUPPORTED_CHAINS } from "./web3/chains";
 
@@ -59,6 +69,7 @@ export default function App() {
   const [migrationArcs, setMigrationArcs] = useState<MigrationArc[]>([]);
   const [buyDraft, setBuyDraft] = useState<BuyDraft | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [collectedAssets, setCollectedAssets] = useState<CollectedAsset[]>([]);
 
   const crisisRef = useRef(crisis);
   crisisRef.current = crisis;
@@ -83,6 +94,7 @@ export default function App() {
     setMigrationArcs([]);
     setBuyDraft(null);
     setSelectedNodeId(null);
+    setCollectedAssets([]);
     setNowMs(Date.now());
   }, []);
 
@@ -154,6 +166,13 @@ export default function App() {
   }, []);
 
   const { canUseOnchain, isPending: onchainPending, createBuyOrder } = useMarketplaceOrder(onNewOnchainActivity);
+
+  useResourceCollection({
+    agentOriginNodeId: DEFAULT_AGENT_ORIGIN_NODE,
+    onCollectedAsset: (asset) => setCollectedAssets((prev) => [asset, ...prev].slice(0, 12)),
+    onCollectionArc: (arc) => setMigrationArcs((prev) => [arc, ...prev].slice(0, 8)),
+    onTapeEvent: (a) => setOnchainActivity((prev) => [a, ...prev].slice(0, 18)),
+  });
 
   const buyNode = useMemo(
     () => (buyDraft ? nodes.find((n) => n.id === buyDraft.nodeId) ?? null : null),
@@ -293,7 +312,7 @@ export default function App() {
 
   useEffect(() => {
     const prune = window.setInterval(() => {
-      setMigrationArcs((arcs) => arcs.filter((a) => Date.now() - a.startedAt < 5000));
+      setMigrationArcs((arcs) => arcs.filter((a) => Date.now() - a.startedAt < (a.durationMs ?? 5000)));
     }, 1000);
     return () => window.clearInterval(prune);
   }, []);
@@ -442,6 +461,7 @@ export default function App() {
               canUseOnchain={canUseOnchain}
               isPending={onchainPending}
               createBuyOrder={createBuyOrder}
+              collectedAssets={collectedAssets}
             />
             <div className="scoutWatchlist">
               <div className="scoutWatchlistHeader">

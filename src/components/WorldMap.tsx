@@ -47,22 +47,24 @@ export default function WorldMap({
   onBuyIntent,
 }: Props) {
   const nodeById = useMemo(() => Object.fromEntries(nodes.map((n) => [n.id, n])), [nodes]);
-  const recentArcs = migrationArcs.filter((a) => Date.now() - a.startedAt < 5000);
 
-  const migrationLines = recentArcs
+  const migrationLines = migrationArcs
     .map((arc) => {
+      const ttl = arc.durationMs ?? 5000;
+      if (Date.now() - arc.startedAt >= ttl) return null;
       const from = nodeById[arc.fromNodeId];
       const to = nodeById[arc.toNodeId];
       if (!from || !to) return null;
       return {
         id: arc.id,
+        kind: arc.kind ?? "simulation",
         positions: [
           [from.lat, from.lng],
           [to.lat, to.lng],
         ] as [number, number][],
       };
     })
-    .filter(Boolean) as { id: string; positions: [number, number][] }[];
+    .filter(Boolean) as { id: string; kind: string; positions: [number, number][] }[];
 
   return (
     <div className={`worldMapWrap ${crisis ? "worldMapWrap--crisis" : ""}`}>
@@ -87,10 +89,11 @@ export default function WorldMap({
             key={line.id}
             positions={line.positions}
             pathOptions={{
-              color: "#6aa5ff",
-              weight: 3,
-              opacity: 0.85,
-              dashArray: "10 8",
+              color: line.kind === "collection" ? "#28d69a" : "#6aa5ff",
+              weight: line.kind === "collection" ? 5 : 3,
+              opacity: line.kind === "collection" ? 0.95 : 0.85,
+              dashArray: line.kind === "collection" ? "14 10" : "10 8",
+              className: line.kind === "collection" ? "migrationArc migrationArc--collection" : "migrationArc",
             }}
           />
         ))}
@@ -115,7 +118,7 @@ export default function WorldMap({
         })}
       </MapContainer>
 
-      <div className="mapHint">CLICK VENUE TO TRADE · PAN/ZOOM MAP · ESC MAP CLICK TO DESELECT</div>
+      <div className="mapHint">CLICK VENUE TO TRADE · GREEN ARC = ENERGY COLLECTION MIGRATION</div>
       <div className="mapLegend">
         <span>
           <i className="legendDot legendDot--good" /> Stable
@@ -124,7 +127,7 @@ export default function WorldMap({
           <i className="legendDot legendDot--bad" /> Stress
         </span>
         <span>
-          <i className="legendDot legendDot--selected" /> Selected
+          <i className="legendLine legendLine--collection" /> Collection arc
         </span>
       </div>
     </div>
