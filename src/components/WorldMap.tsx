@@ -1,15 +1,17 @@
-import { Fragment, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
-import { Circle, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, Polyline, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import type { MarketNode, MigrationArc } from "../lib/types";
-import { fmtCurrency } from "../lib/utils";
+import type { ResourceKind } from "../lib/marketplace";
+import MapNodeMarker from "./MapNodeMarker";
 
 type Props = {
   nodes: MarketNode[];
   crisis: boolean;
   migrationArcs: MigrationArc[];
   overloadedNodeId: string | null;
+  onBuyIntent: (node: MarketNode, resource: ResourceKind) => void;
 };
 
 function FitNodeBounds({ nodes }: { nodes: MarketNode[] }) {
@@ -26,23 +28,7 @@ function FitNodeBounds({ nodes }: { nodes: MarketNode[] }) {
   return null;
 }
 
-function createNodeIcon(node: MarketNode, hot: boolean, overloaded: boolean) {
-  const shortName = node.name.split(" ")[0];
-  return L.divIcon({
-    className: "sonergyLeafletIcon",
-    html: `
-      <div class="mapMarker ${hot ? "mapMarker--hot" : ""} ${overloaded ? "mapMarker--overload" : ""}">
-        <span class="mapMarkerDot"></span>
-        <span class="mapMarkerLabel">${shortName}</span>
-        ${overloaded ? '<span class="mapMarkerAlert">OVERLOAD</span>' : ""}
-      </div>
-    `,
-    iconSize: [96, 52],
-    iconAnchor: [48, 26],
-  });
-}
-
-export default function WorldMap({ nodes, crisis, migrationArcs, overloadedNodeId }: Props) {
+export default function WorldMap({ nodes, crisis, migrationArcs, overloadedNodeId, onBuyIntent }: Props) {
   const nodeById = useMemo(() => Object.fromEntries(nodes.map((n) => [n.id, n])), [nodes]);
   const recentArcs = migrationArcs.filter((a) => Date.now() - a.startedAt < 5000);
 
@@ -93,44 +79,23 @@ export default function WorldMap({ nodes, crisis, migrationArcs, overloadedNodeI
 
         {nodes.map((n) => {
           const overloaded = overloadedNodeId === n.id;
-          const scoutHot = (n.scoutStatus ?? "normal") === "extreme" || (n.scoutStatus ?? "normal") === "expensive";
+          const scoutHot =
+            (n.scoutStatus ?? "normal") === "extreme" || (n.scoutStatus ?? "normal") === "expensive";
           const hot = (crisis && (overloaded || n.workloadsActive > 70)) || scoutHot;
           return (
-            <Fragment key={n.id}>
-              {hot ? (
-                <Circle
-                  center={[n.lat, n.lng]}
-                  radius={crisis ? 650_000 : 400_000}
-                  pathOptions={{
-                    color: "#ff4d5a",
-                    fillColor: "#ff4d5a",
-                    fillOpacity: 0.12,
-                    weight: 1,
-                    className: "mapPulseCircle",
-                  }}
-                />
-              ) : null}
-              <Marker position={[n.lat, n.lng]} icon={createNodeIcon(n, hot, overloaded && crisis)}>
-                <Popup className="mapPopup">
-                  <strong>{n.name}</strong>
-                  <div>{n.regionTag}</div>
-                  <ul>
-                    <li>Energy: {fmtCurrency(n.energyPrice)}</li>
-                    <li>GPU supply: {Math.round(n.gpuSupply)}%</li>
-                    <li>Renewable: {Math.round(n.renewablePct)}%</li>
-                    <li>Carbon score: {n.carbonScore}</li>
-                    <li>Active workloads: {Math.round(n.workloadsActive)}</li>
-                    <li>Baseline: ${(n.priceBaseline ?? n.energyPrice).toFixed(3)}</li>
-                    <li>Deviation: {(n.priceDeviationPct ?? 0).toFixed(1)}%</li>
-                  </ul>
-                </Popup>
-              </Marker>
-            </Fragment>
+            <MapNodeMarker
+              key={n.id}
+              node={n}
+              hot={hot}
+              overloaded={overloaded}
+              crisis={crisis}
+              onBuyIntent={onBuyIntent}
+            />
           );
         })}
       </MapContainer>
 
-      <div className="mapHint">Scroll to zoom · Drag to pan · Click nodes for details</div>
+      <div className="mapHint">Scroll to zoom · Hover cities to buy · Click for venue details</div>
       <div className="mapLegend">
         <span>
           <i className="legendDot legendDot--good" /> Stable node

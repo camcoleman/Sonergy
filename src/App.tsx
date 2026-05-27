@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useChainId } from "wagmi";
 import AllocationMeters from "./components/AllocationMeters";
+import BuyOrderSheet, { type BuyDraft } from "./components/BuyOrderSheet";
 import OnchainMarketplace from "./components/OnchainMarketplace";
 import WorldMap from "./components/WorldMap";
+import { useMarketplaceOrder } from "./hooks/useMarketplaceOrder";
 import {
   cloneDefaultNodes,
   CRISIS_AGENT_ALLOCATION,
@@ -12,6 +14,13 @@ import {
   STEADY_AGENT_ALLOCATION,
   STEADY_HUMAN_ALLOCATION,
 } from "./lib/data";
+import {
+  resourceLabel,
+  resourceShort,
+  totalCostUsd,
+  unitPriceForResource,
+  type ResourceKind,
+} from "./lib/marketplace";
 import { genCrisisBurst, genMarketUpdate } from "./lib/simulation";
 import type { Activity, CrisisState, MarketNode, MigrationArc, ScoutConfig, ScoutStatus } from "./lib/types";
 import { ACTIVITY_PRIORITY, clamp, fmtCurrency, fmtPct, fmtSignedPct, timeAgo, uid } from "./lib/utils";
@@ -47,6 +56,7 @@ export default function App() {
   const [humanAllocation, setHumanAllocation] = useState(STEADY_HUMAN_ALLOCATION);
   const [agentAllocation, setAgentAllocation] = useState(STEADY_AGENT_ALLOCATION);
   const [migrationArcs, setMigrationArcs] = useState<MigrationArc[]>([]);
+  const [buyDraft, setBuyDraft] = useState<BuyDraft | null>(null);
 
   const crisisRef = useRef(crisis);
   crisisRef.current = crisis;
@@ -138,6 +148,75 @@ export default function App() {
   const onNewOnchainActivity = useCallback((a: Activity) => {
     setOnchainActivity((prev) => [a, ...prev].slice(0, 18));
   }, []);
+
+  const { canUseOnchain, isPending: onchainPending, createBuyOrder } = useMarketplaceOrder(onNewOnchainActivity);
+
+  const buyNode = useMemo(
+    () => (buyDraft ? nodes.find((n) => n.id === buyDraft.nodeId) ?? null : null),
+    [buyDraft, nodes],
+  );
+
+  const openBuyIntent = useCallback((node: MarketNode, resource: ResourceKind, quantity = 10) => {
+    setBuyDraft({ nodeId: node.id, resource, quantity });
+  }, []);
+
+  const executeSimulatedBuy = useCallback(
+    (draft: BuyDraft) => {
+      const node = nodes.find((n) => n.id === draft.nodeId);
+      if (!node) return;
+
+      const unitPrice = unitPriceForResource(node, draft.resource);
+      const total = totalCostUsd(unitPrice, draft.quantity);
+      const venue = node.name.replace(" Node", "");
+
+      setActivity((prev) =>
+        [
+          {
+            id: uid("buy"),
+            at: Date.now(),
+            kind: "purchase" as const,
+            message: `Fill: You bought ${draft.quantity} ${resourceLabel(draft.resource)} @ ${venue} for $${total.toFixed(2)} (${resourceShort(draft.resource)} @ $${unitPrice.toFixed(3)}).`,
+            toNodeId: node.id,
+          },
+          ...prev,
+        ].slice(0, 24),
+      );
+
+      setNodes((prev) =>
+        prev.map((n) => {
+          if (n.id !== node.id) return n;
+          if (draft.resource === "energy") {
+            return {
+              ...n,
+              workloadsActive: clamp(n.workloadsActive + draft.quantity * 0.4, 0, 100),
+              gpuSupply: clamp(n.gpuSupply - draft.quantity * 0.15, 8, 100),
+            };
+          }
+          return {
+            ...n,
+            gpuSupply: clamp(n.gpuSupply - draft.quantity * 0.8, 8, 100),
+            workloadsActive: clamp(n.workloadsActive + draft.quantity * 0.6, 0, 100),
+          };
+        }),
+      );
+
+      setBuyDraft(null);
+    },
+    [nodes],
+  );
+
+  const submitOnchainBuy = useCallback(
+    async (draft: BuyDraft, unitPriceUsd: string) => {
+      await createBuyOrder({
+        nodeId: draft.nodeId,
+        resource: draft.resource,
+        unitPriceUsd,
+        quantity: draft.quantity,
+      });
+      setBuyDraft(null);
+    },
+    [createBuyOrder],
+  );
 
   useEffect(() => {
     const tick = window.setInterval(() => {
@@ -308,8 +387,18 @@ export default function App() {
           </div>
           <div className="panelBody">
             <OnchainMarketplace
-              nodes={nodes.map((n) => ({ id: n.id, name: n.name }))}
-              onNewOnchainActivity={onNewOnchainActivity}
+              nodes={nodes.map((n) => ({
+                id: n.id,
+                name: n.name,
+                energyPrice: n.energyPrice,
+                gpuSupply: n.gpuSupply,
+              }))}
+              buyIntent={buyDraft}
+              onBuyIntent={setBuyDraft}
+              chainId={chainId}
+              canUseOnchain={canUseOnchain}
+              isPending={onchainPending}
+              createBuyOrder={createBuyOrder}
             />
             <div className="scoutWatchlist">
               <div className="scoutWatchlistHeader">
@@ -445,6 +534,7 @@ export default function App() {
               crisis={crisis.active}
               migrationArcs={migrationArcs}
               overloadedNodeId={overloadedNodeId}
+              onBuyIntent={openBuyIntent}
             />
             <AllocationMeters
               humanPct={humanAllocation}
@@ -550,6 +640,17 @@ export default function App() {
       </div>
 
       {crisis.active ? <div className="crisisOverlay" aria-hidden="true" /> : null}
+
+      <BuyOrderSheet
+        open={Boolean(buyDraft)}
+        node={buyNode}
+        draft={buyDraft}
+        canSubmitOnchain={canUseOnchain}
+        onchainPending={onchainPending}
+        onClose={() => setBuyDraft(null)}
+        onExecuteSimulated={executeSimulatedBuy}
+        onSubmitOnchain={submitOnchainBuy}
+      />
     </div>
   );
 }
