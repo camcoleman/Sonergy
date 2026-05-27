@@ -15,6 +15,11 @@ export function fmtPct(n: number) {
   return `${Math.round(n)}%`;
 }
 
+export function fmtSignedPct(n: number, digits = 1) {
+  const sign = n > 0 ? "+" : "";
+  return `${sign}${n.toFixed(digits)}%`;
+}
+
 export function timeAgo(atMs: number, nowMs: number) {
   const s = Math.max(0, Math.floor((nowMs - atMs) / 1000));
   if (s < 60) return `${s}s ago`;
@@ -33,6 +38,7 @@ export function uid(prefix: string) {
 }
 
 export const ACTIVITY_PRIORITY: Record<string, number> = {
+  scout: 0,
   ethics: 0,
   grid: 1,
   migration: 2,

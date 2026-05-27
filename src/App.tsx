@@ -13,8 +13,8 @@ import {
   STEADY_HUMAN_ALLOCATION,
 } from "./lib/data";
 import { genCrisisBurst, genMarketUpdate } from "./lib/simulation";
-import type { Activity, CrisisState, MarketNode, MigrationArc } from "./lib/types";
-import { ACTIVITY_PRIORITY, clamp, fmtCurrency, fmtPct, timeAgo, uid } from "./lib/utils";
+import type { Activity, CrisisState, MarketNode, MigrationArc, ScoutConfig, ScoutStatus } from "./lib/types";
+import { ACTIVITY_PRIORITY, clamp, fmtCurrency, fmtPct, fmtSignedPct, timeAgo, uid } from "./lib/utils";
 import { DEFAULT_CHAIN_ID, SUPPORTED_CHAINS } from "./web3/chains";
 
 export default function App() {
@@ -36,6 +36,13 @@ export default function App() {
     severity: 0.85,
   });
   const [durationSec, setDurationSec] = useState(20);
+  const [scoutSensitivity, setScoutSensitivity] = useState<"low" | "medium" | "high">("medium");
+  const [scoutCooldownMode, setScoutCooldownMode] = useState<"short" | "normal">("normal");
+  const [scoutFilters, setScoutFilters] = useState<Record<Exclude<ScoutStatus, "normal">, boolean>>({
+    cheap: true,
+    expensive: true,
+    extreme: true,
+  });
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [humanAllocation, setHumanAllocation] = useState(STEADY_HUMAN_ALLOCATION);
   const [agentAllocation, setAgentAllocation] = useState(STEADY_AGENT_ALLOCATION);
@@ -81,6 +88,19 @@ export default function App() {
     return { avgEnergy, avgRenew, avgCarbon, avgEfficiency };
   }, [nodes]);
 
+  const scoutConfig = useMemo<ScoutConfig>(() => {
+    const bySensitivity = {
+      low: { cheapThresholdPct: 16, expensiveThresholdPct: 16, extremeThresholdPct: 28, ewmaAlpha: 0.08 },
+      medium: { cheapThresholdPct: 12, expensiveThresholdPct: 12, extremeThresholdPct: 22, ewmaAlpha: 0.12 },
+      high: { cheapThresholdPct: 9, expensiveThresholdPct: 9, extremeThresholdPct: 18, ewmaAlpha: 0.16 },
+    } as const;
+    const cooldownMs = scoutCooldownMode === "short" ? 12_000 : 24_000;
+    return {
+      ...bySensitivity[scoutSensitivity],
+      alertCooldownMs: cooldownMs,
+    };
+  }, [scoutSensitivity, scoutCooldownMode]);
+
   const overloadedNodeId = useMemo(() => {
     if (!crisis.active) return null;
     const sorted = [...nodes].sort((a, b) => b.workloadsActive - a.workloadsActive);
@@ -98,6 +118,23 @@ export default function App() {
     });
   }, [activity, onchainActivity, crisis.active]);
 
+  const scoutWatchlist = useMemo(() => {
+    return [...nodes]
+      .filter((n) => (n.scoutStatus ?? "normal") !== "normal")
+      .filter((n) => {
+        const status = n.scoutStatus ?? "normal";
+        if (status === "normal") return false;
+        return scoutFilters[status];
+      })
+      .sort((a, b) => Math.abs(b.priceDeviationPct ?? 0) - Math.abs(a.priceDeviationPct ?? 0))
+      .slice(0, 8);
+  }, [nodes, scoutFilters]);
+
+  const scoutAlertCount = useMemo(
+    () => nodes.filter((n) => (n.scoutStatus ?? "normal") !== "normal").length,
+    [nodes],
+  );
+
   const onNewOnchainActivity = useCallback((a: Activity) => {
     setOnchainActivity((prev) => [a, ...prev].slice(0, 18));
   }, []);
@@ -107,10 +144,10 @@ export default function App() {
       setNowMs(Date.now());
       setNodes((prev) => {
         const crisisNow = crisisRef.current;
-        const { next, event } = genMarketUpdate(prev, crisisNow);
+        const { next, events } = genMarketUpdate(prev, crisisNow, scoutConfig);
 
-        if (event) {
-          setActivity((a) => [event, ...a].slice(0, 24));
+        if (events.length > 0) {
+          setActivity((a) => [...events, ...a].slice(0, 24));
         }
 
         if (crisisNow.active && Math.random() < 0.4) {
@@ -123,7 +160,7 @@ export default function App() {
       });
     }, 1500);
     return () => window.clearInterval(tick);
-  }, [pushMigrationArc]);
+  }, [pushMigrationArc, scoutConfig]);
 
   useEffect(() => {
     if (!crisis.active) return;
@@ -226,6 +263,9 @@ export default function App() {
             System: <strong>{systemHealth.label}</strong>
           </span>
         </div>
+        <div className={`pill ${scoutAlertCount > 0 ? "scoutCounter scoutCounter--active" : "scoutCounter"}`}>
+          ALERTS: <strong>{scoutAlertCount}</strong>
+        </div>
       </div>
 
       {isConnected && !isSupportedChain ? (
@@ -271,6 +311,63 @@ export default function App() {
               nodes={nodes.map((n) => ({ id: n.id, name: n.name }))}
               onNewOnchainActivity={onNewOnchainActivity}
             />
+            <div className="scoutWatchlist">
+              <div className="scoutWatchlistHeader">
+                <strong>Price Scout Watchlist</strong>
+                <div className="scoutFilterRow">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={scoutFilters.cheap}
+                      onChange={(e) => setScoutFilters((f) => ({ ...f, cheap: e.target.checked }))}
+                    />
+                    CHEAP
+                  </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={scoutFilters.expensive}
+                      onChange={(e) => setScoutFilters((f) => ({ ...f, expensive: e.target.checked }))}
+                    />
+                    EXPENSIVE
+                  </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={scoutFilters.extreme}
+                      onChange={(e) => setScoutFilters((f) => ({ ...f, extreme: e.target.checked }))}
+                    />
+                    EXTREME
+                  </label>
+                </div>
+              </div>
+              {scoutWatchlist.length === 0 ? (
+                <div className="onchainHint">No significant deviations right now.</div>
+              ) : (
+                <table className="scoutTable">
+                  <thead>
+                    <tr>
+                      <th>Venue</th>
+                      <th>Now</th>
+                      <th>Base</th>
+                      <th>Dev</th>
+                      <th>Signal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scoutWatchlist.map((n) => (
+                      <tr key={n.id} className={`scoutRow scoutRow--${n.scoutStatus ?? "normal"}`}>
+                        <td>{n.name.split(" ").slice(0, 2).join(" ")}</td>
+                        <td>{fmtCurrency(n.energyPrice).replace("/kWh", "")}</td>
+                        <td>${(n.priceBaseline ?? n.energyPrice).toFixed(2)}</td>
+                        <td>{fmtSignedPct(n.priceDeviationPct ?? 0, 1)}</td>
+                        <td>{(n.scoutStatus ?? "normal").toUpperCase()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
             <div className="tableWrap">
               <table>
                 <thead>
@@ -284,7 +381,7 @@ export default function App() {
                 </thead>
                 <tbody>
                   {nodes.map((n) => (
-                    <tr key={n.id}>
+                    <tr key={n.id} className={`marketRow marketRow--${n.scoutStatus ?? "normal"}`}>
                       <td>
                         <div className="nodeName">
                           <span>{n.name.replace(" Node", "")}</span>
@@ -409,6 +506,21 @@ export default function App() {
                 <option value={20}>20s</option>
                 <option value={35}>35s</option>
                 <option value={50}>50s</option>
+              </select>
+            </div>
+            <div className="humanFacing">
+              <div className="controlLabel">Scout sensitivity</div>
+              <select value={scoutSensitivity} onChange={(e) => setScoutSensitivity(e.target.value as "low" | "medium" | "high")}>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+            <div className="humanFacing">
+              <div className="controlLabel">Scout cooldown</div>
+              <select value={scoutCooldownMode} onChange={(e) => setScoutCooldownMode(e.target.value as "short" | "normal")}>
+                <option value="short">Short</option>
+                <option value="normal">Normal</option>
               </select>
             </div>
             <button

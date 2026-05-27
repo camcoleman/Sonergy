@@ -1,12 +1,22 @@
-import type { Activity, CrisisState, MarketNode } from "./types";
+import type { Activity, CrisisState, MarketNode, ScoutConfig, ScoutStatus } from "./types";
 import { clamp, pick, round, uid } from "./utils";
 
 export function genMarketUpdate(
   nodes: MarketNode[],
   crisis: CrisisState,
-): { next: MarketNode[]; event?: Activity } {
+  scoutConfig: ScoutConfig,
+): { next: MarketNode[]; events: Activity[] } {
   const now = Date.now();
   const severity = crisis.active ? crisis.severity : 0;
+  const events: Activity[] = [];
+
+  function getScoutStatus(deviationPct: number): ScoutStatus {
+    const abs = Math.abs(deviationPct);
+    if (abs >= scoutConfig.extremeThresholdPct) return "extreme";
+    if (deviationPct <= -scoutConfig.cheapThresholdPct) return "cheap";
+    if (deviationPct >= scoutConfig.expensiveThresholdPct) return "expensive";
+    return "normal";
+  }
 
   const updated = nodes.map((n) => {
     const priceDrift = (Math.random() * 0.04 - 0.02) * (1 + severity * 1.3);
@@ -32,32 +42,78 @@ export function genMarketUpdate(
       nextEfficiency = n.efficiencyScore - (10 + severity * 18) + (Math.random() * 6 - 3);
     }
 
+    const energyPrice = round(clamp(nextPrice, 0.03, 0.38), 3);
+    const prevBaseline = n.priceBaseline ?? n.energyPrice;
+    const baseline = round(
+      prevBaseline + (energyPrice - prevBaseline) * clamp(scoutConfig.ewmaAlpha, 0.02, 0.85),
+      4,
+    );
+    const deviationPct = ((energyPrice - baseline) / Math.max(baseline, 0.0001)) * 100;
+    const volatility = Math.abs(deviationPct);
+    const prevStatus = n.scoutStatus ?? "normal";
+    const nextStatus = getScoutStatus(deviationPct);
+
+    const lastAlertAt = n.scoutLastAlertAt ?? 0;
+    const crossedState = prevStatus !== nextStatus;
+    const cooldownPassed = now - lastAlertAt >= scoutConfig.alertCooldownMs;
+
+    if (nextStatus !== "normal" && crossedState && cooldownPassed) {
+      if (nextStatus === "cheap") {
+        events.push({
+          id: uid("scout"),
+          at: now,
+          kind: "scout",
+          message: `Scout opportunity: ${n.name} is ${Math.abs(deviationPct).toFixed(1)}% below baseline.`,
+          toNodeId: n.id,
+        });
+      } else if (nextStatus === "expensive") {
+        events.push({
+          id: uid("scout"),
+          at: now,
+          kind: "scout",
+          message: `Scout alert: ${n.name} is ${deviationPct.toFixed(1)}% above baseline.`,
+          toNodeId: n.id,
+        });
+      } else {
+        events.push({
+          id: uid("scout"),
+          at: now,
+          kind: "scout",
+          message: `Scout extreme: ${n.name} diverged ${deviationPct.toFixed(1)}% from normal.`,
+          toNodeId: n.id,
+        });
+      }
+    }
+
     return {
       ...n,
-      energyPrice: round(clamp(nextPrice, 0.03, 0.38), 3),
+      energyPrice,
       renewablePct: round(clamp(nextRenew, 5, 100), 1),
       gpuSupply: round(clamp(nextSupply, 8, 100), 1),
       carbonScore: Math.round(clamp(nextCarbon, 4, 99)),
       workloadsActive: round(clamp(nextWorkloads, 0, 100), 1),
       efficiencyScore: Math.round(clamp(nextEfficiency, 15, 100)),
+      priceBaseline: baseline,
+      priceVolatility: round(volatility, 2),
+      priceDeviationPct: round(deviationPct, 2),
+      scoutStatus: nextStatus,
+      scoutLastAlertAt: nextStatus !== "normal" && crossedState && cooldownPassed ? now : lastAlertAt,
     };
   });
 
   if (!crisis.active && Math.random() < 0.12) {
     const deltaPct = Math.round(6 + Math.random() * 15);
     const target = pick(updated);
-    return {
-      next: updated,
-      event: {
-        id: uid("evt"),
-        at: now,
-        kind: "market",
-        message: `Energy prices increased ${deltaPct}% on ${target.name.split(" ")[0]} due to AI demand.`,
-      },
-    };
+    events.push({
+      id: uid("evt"),
+      at: now,
+      kind: "market",
+      message: `Energy prices increased ${deltaPct}% on ${target.name.split(" ")[0]} due to AI demand.`,
+      toNodeId: target.id,
+    });
   }
 
-  return { next: updated };
+  return { next: updated, events };
 }
 
 export function genCrisisBurst(updatedNodes: MarketNode[]): Activity[] {

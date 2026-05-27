@@ -93,7 +93,8 @@ export default function WorldMap({ nodes, crisis, migrationArcs, overloadedNodeI
 
         {nodes.map((n) => {
           const overloaded = overloadedNodeId === n.id;
-          const hot = crisis && (overloaded || n.workloadsActive > 70);
+          const scoutHot = (n.scoutStatus ?? "normal") === "extreme" || (n.scoutStatus ?? "normal") === "expensive";
+          const hot = (crisis && (overloaded || n.workloadsActive > 70)) || scoutHot;
           return (
             <Fragment key={n.id}>
               {hot ? (
@@ -119,6 +120,8 @@ export default function WorldMap({ nodes, crisis, migrationArcs, overloadedNodeI
                     <li>Renewable: {Math.round(n.renewablePct)}%</li>
                     <li>Carbon score: {n.carbonScore}</li>
                     <li>Active workloads: {Math.round(n.workloadsActive)}</li>
+                    <li>Baseline: ${(n.priceBaseline ?? n.energyPrice).toFixed(3)}</li>
+                    <li>Deviation: {(n.priceDeviationPct ?? 0).toFixed(1)}%</li>
                   </ul>
                 </Popup>
               </Marker>

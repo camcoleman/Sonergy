@@ -103,6 +103,15 @@ body {
   font-size: 11px;
 }
 
+.scoutCounter {
+  border-color: rgba(90, 115, 173, 0.4);
+}
+
+.scoutCounter--active {
+  border-color: rgba(255, 77, 90, 0.55);
+  color: #ffd0d3;
+}
+
 .pillCompact {
   padding: 6px 10px;
 }
@@ -637,7 +646,8 @@ th {
 }
 
 .feedItem--ethics,
-.feedItem--grid {
+.feedItem--grid,
+.feedItem--scout {
   border-color: rgba(255, 77, 90, 0.35);
   background: rgba(48, 18, 24, 0.35);
 }
@@ -658,7 +668,8 @@ th {
 }
 
 .feedItem--ethics .feedKind,
-.feedItem--grid .feedKind {
+.feedItem--grid .feedKind,
+.feedItem--scout .feedKind {
   color: #ff9aa2;
 }
 
@@ -724,6 +735,62 @@ select {
 
 .onchainWrap {
   margin-bottom: 12px;
+}
+
+.scoutWatchlist {
+  border: 1px solid rgba(90, 115, 173, 0.28);
+  border-radius: 10px;
+  padding: 8px;
+  margin-bottom: 10px;
+  background: rgba(16, 28, 57, 0.35);
+}
+
+.scoutWatchlistHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.scoutFilterRow {
+  display: flex;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.scoutFilterRow label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.scoutTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.scoutTable th,
+.scoutTable td {
+  font-size: 11px;
+  padding: 5px 6px;
+}
+
+.scoutRow--cheap td,
+.marketRow--cheap td {
+  background: rgba(47, 227, 166, 0.08);
+}
+
+.scoutRow--expensive td,
+.marketRow--expensive td {
+  background: rgba(255, 204, 102, 0.08);
+}
+
+.scoutRow--extreme td,
+.marketRow--extreme td {
+  background: rgba(255, 77, 90, 0.12);
 }
 
 .tabs {

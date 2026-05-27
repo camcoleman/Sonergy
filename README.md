@@ -27,6 +27,7 @@ After GitHub Pages is enabled (see [Deploy](#deploy)), the app will be available
 - **Systems thinking panel** — benefit, concern, failure scenario, ethical question
 - **Reset demo** — restores a clean baseline for repeatable presentations
 - **On-chain marketplace** — wallet connect + real on-chain orders/fills (MockUSDC + ResourceMarketplace)
+- **Price Scout alerts** — rolling baseline model flags cheap/expensive/extreme regional price dislocations
 
 ## Run locally
 
@@ -47,12 +48,12 @@ npm run preview
 ## Presentation script (2 minutes)
 
 1. **Steady state (30s)** — Point to Oregon, Iceland, Tokyo, Texas. Note renewables and carbon scores. Read one agent feed item.
-2. **Systems thinking (20s)** — Cycle through Benefit → Concern → Ethical question in the right panel.
+2. **Price Scout (20s)** — Show the watchlist and explain baseline vs current price deviation (`cheap`, `expensive`, `extreme`).
 3. **Trigger Grid Crisis (45s)** — Click the button. Watch:
    - Red **grid overload** and **human access throttled** banners
    - Map nodes pulse red; migration lines animate
    - Human allocation drops (~62% → ~12%); agent allocation rises
-   - Feed prioritizes ethics/grid events
+   - Feed prioritizes scout/risk/grid events
 4. **Discussion (25s)** — *Should AI agents compete with humans for critical infrastructure like electricity?*
 
 5. **Reset demo** — Return to baseline for the next audience.

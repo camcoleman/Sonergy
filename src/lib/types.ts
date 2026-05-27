@@ -10,9 +10,16 @@ export type MarketNode = {
   carbonScore: number;
   workloadsActive: number;
   efficiencyScore: number;
+  priceBaseline?: number;
+  priceVolatility?: number;
+  priceDeviationPct?: number;
+  scoutStatus?: ScoutStatus;
+  scoutLastAlertAt?: number;
 };
 
-export type ActivityKind = "migration" | "purchase" | "market" | "grid" | "ethics";
+export type ScoutStatus = "normal" | "cheap" | "expensive" | "extreme";
+
+export type ActivityKind = "migration" | "purchase" | "market" | "grid" | "ethics" | "scout";
 
 export type Activity = {
   id: string;
@@ -41,4 +48,12 @@ export type SystemsInsight = {
   label: string;
   title: string;
   body: string;
+};
+
+export type ScoutConfig = {
+  cheapThresholdPct: number;
+  expensiveThresholdPct: number;
+  extremeThresholdPct: number;
+  alertCooldownMs: number;
+  ewmaAlpha: number;
 };
